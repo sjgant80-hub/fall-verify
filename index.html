@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fall-verify · adversarial verification · did Claude hallucinate?</title>
+<meta name="description" content="Drop-in 3-vote adversarial verification panel for LLM-generated claims. Catch hallucinations before they propagate. Sovereign · BYO Anthropic key · MIT.">
+<meta name="theme-color" content="#0b0a0f">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Syne:wght@500;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+
+<link rel="manifest" href='data:application/manifest+json,{"name":"fall-verify","short_name":"verify","description":"adversarial verification panel","start_url":"./","display":"standalone","background_color":"%230b0a0f","theme_color":"%230b0a0f","icons":[{"src":"data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22><rect width=%22192%22 height=%22192%22 fill=%22%230b0a0f%22/><text x=%2296%22 y=%22128%22 font-size=%22128%22 text-anchor=%22middle%22 fill=%22%23d4a853%22 font-family=%22serif%22>%E2%97%8A</text></svg>","sizes":"192x192","type":"image/svg+xml"}]}'>
+
+<style>
+  :root {
+    --ox: #8b1a1a;
+    --brass: #b8974a;
+    --cream: #c4bfb2;
+    --void: #0b0a0f;
+    --gold: #d4a853;
+    --surface: #14131a;
+    --surface-2: #1a1922;
+    --border: #2a2730;
+    --border-warm: #3a3329;
+    --muted: #6f6b78;
+    --confirmed: #4a8a4a;
+    --refuted: #c8371a;
+    --inconclusive: #c87e3a;
+    --panelist-1: #b8974a;
+    --panelist-2: #d4a853;
+    --panelist-3: #c4a26f;
+    --panelist-4: #a08a52;
+    --panelist-5: #d8b96a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--void); color: var(--cream);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background-image:
+      radial-gradient(at 12% 0%, rgba(139,26,26,0.10) 0%, transparent 45%),
+      radial-gradient(at 88% 100%, rgba(212,168,83,0.06) 0%, transparent 40%);
+  }
+
+  header {
+    padding: 22px 32px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+  }
+  header .brand {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 22px; letter-spacing: 0.01em;
+  }
+  header .brand em { color: var(--gold); font-style: normal; }
+  header .brand .glyph { color: var(--brass); }
+  header .meta {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  header .meta b { color: var(--brass); font-weight: 500; }
+
+  .hero {
+    max-width: 1200px; margin: 0 auto; padding: 64px 32px 32px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-family: 'Libre Baskerville', serif;
+    font-size: clamp(32px, 5vw, 52px);
+    font-weight: 700; line-height: 1.15;
+    margin: 0 0 18px;
+    color: var(--cream);
+  }
+  .hero h1 em {
+    font-style: italic; color: var(--gold);
+  }
+  .hero .tagline {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(14px, 1.5vw, 17px);
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--brass); margin: 0 0 32px;
+  }
+  .hero .tagline span { color: var(--muted); margin: 0 8px; }
+
+  .stat {
+    display: inline-block;
+    padding: 18px 32px;
+    border: 1px solid var(--border-warm);
+    background: linear-gradient(180deg, rgba(212,168,83,0.04), rgba(139,26,26,0.04));
+    margin: 8px 0 16px;
+  }
+  .stat .big {
+    font-family: 'Libre Baskerville', serif;
+    font-size: clamp(36px, 6vw, 56px);
+    color: var(--gold);
+    line-height: 1; display: block;
+  }
+  .stat .lbl {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--cream); letter-spacing: 0.10em;
+    text-transform: uppercase; margin-top: 8px; display: block;
+    max-width: 460px;
+  }
+  .stat .lbl b { color: var(--brass); font-weight: 500; }
+
+  main {
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 32px 48px;
+  }
+
+  .panel-builder {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 28px;
+    margin-bottom: 32px;
+  }
+  .panel-builder h2 {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 22px; margin: 0 0 6px;
+  }
+  .panel-builder .sub {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--muted); margin: 0 0 22px;
+    letter-spacing: 0.06em;
+  }
+
+  .preset-row {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
+  }
+  .preset-row button {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--cream); padding: 9px 13px;
+    font-family: 'DM Mono', monospace; font-size: 11.5px;
+    cursor: pointer; transition: all 0.12s;
+    letter-spacing: 0.02em;
+  }
+  .preset-row button:hover {
+    border-color: var(--gold); color: var(--gold);
+    background: rgba(212,168,83,0.04);
+  }
+  .preset-row button.expected-refute::before { content: '✗ '; color: var(--refuted); }
+  .preset-row button.expected-confirm::before { content: '✓ '; color: var(--confirmed); }
+  .preset-row button.expected-incon::before   { content: '? '; color: var(--inconclusive); }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); display: block; margin-bottom: 6px;
+  }
+  .field textarea, .field input[type=text], .field input[type=password] {
+    width: 100%; background: var(--void); border: 1px solid var(--border);
+    color: var(--cream); padding: 11px 13px;
+    font-family: 'DM Mono', monospace; font-size: 13px;
+    line-height: 1.5; resize: vertical;
+  }
+  .field textarea:focus, .field input:focus {
+    outline: 1px solid var(--gold); outline-offset: -1px;
+    border-color: var(--gold);
+  }
+  .field textarea#claim { min-height: 84px; }
+  .field textarea#sources { min-height: 60px; font-size: 12px; }
+
+  .controls-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-bottom: 16px;
+  }
+  @media (max-width: 600px) { .controls-row { grid-template-columns: 1fr; } }
+
+  .slider-wrap {
+    display: flex; align-items: center; gap: 12px;
+    font-family: 'DM Mono', monospace; font-size: 13px;
+  }
+  .slider-wrap input[type=range] {
+    flex: 1; accent-color: var(--gold);
+  }
+  .slider-wrap .val {
+    color: var(--gold); font-weight: 500;
+    min-width: 28px; text-align: center;
+    border: 1px solid var(--border); padding: 4px 8px;
+  }
+
+  .actions {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-top: 8px; padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  .btn {
+    background: var(--ox); color: var(--cream); border: none;
+    padding: 13px 26px;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    letter-spacing: 0.10em; text-transform: uppercase;
+    font-size: 12.5px; cursor: pointer; transition: all 0.15s;
+  }
+  .btn:hover:not(:disabled) { background: var(--gold); color: var(--void); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--cream); }
+  .btn.ghost:hover { border-color: var(--gold); color: var(--gold); }
+  .key-note {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--muted); margin-left: auto;
+    letter-spacing: 0.04em;
+  }
+  .key-note .ok { color: var(--confirmed); }
+
+  /* Panel deliberation grid */
+  .panel-stage {
+    margin-bottom: 32px;
+    display: none;
+  }
+  .panel-stage.active { display: block; }
+  .panel-stage h3 {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 18px; margin: 0 0 4px;
+    color: var(--brass);
+  }
+  .panel-stage .stage-sub {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--muted); margin: 0 0 18px;
+    letter-spacing: 0.06em;
+  }
+  .panel-stage .panel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .panelist-card {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 18px; min-height: 220px;
+    position: relative;
+    transition: border-color 0.3s;
+  }
+  .panelist-card .head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 10px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panelist-card .num {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 14px; color: var(--cream);
+  }
+  .panelist-card .num .accent {
+    font-style: italic; color: var(--gold);
+  }
+  .panelist-card .role {
+    font-family: 'DM Mono', monospace; font-size: 10.5px;
+    color: var(--muted); letter-spacing: 0.10em; text-transform: uppercase;
+  }
+  .panelist-card .body {
+    font-family: 'DM Sans', sans-serif; font-size: 13.5px;
+    color: var(--cream); line-height: 1.55;
+  }
+  .panelist-card .vote {
+    display: inline-block;
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    letter-spacing: 0.10em; text-transform: uppercase;
+    font-size: 11px; padding: 4px 10px;
+    margin-bottom: 10px;
+  }
+  .panelist-card .vote.confirm     { background: var(--confirmed); color: white; }
+  .panelist-card .vote.refute      { background: var(--refuted);   color: white; }
+  .panelist-card .vote.inconclusive{ background: var(--inconclusive); color: white; }
+  .panelist-card .citations {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--muted); word-break: break-all;
+  }
+  .panelist-card .citations a {
+    color: var(--brass); text-decoration: none;
+  }
+  .panelist-card .citations a:hover { color: var(--gold); text-decoration: underline; }
+  .panelist-card .elapsed {
+    position: absolute; top: 16px; right: 16px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    color: var(--muted); letter-spacing: 0.04em;
+  }
+
+  /* Panelist accent colors (alternating brass/gold feel) */
+  .panelist-card[data-idx="1"] { border-top: 2px solid var(--panelist-1); }
+  .panelist-card[data-idx="2"] { border-top: 2px solid var(--panelist-2); }
+  .panelist-card[data-idx="3"] { border-top: 2px solid var(--panelist-3); }
+  .panelist-card[data-idx="4"] { border-top: 2px solid var(--panelist-4); }
+  .panelist-card[data-idx="5"] { border-top: 2px solid var(--panelist-5); }
+
+  .panelist-card.deliberating .body {
+    color: var(--muted); font-style: italic;
+  }
+  .panelist-card.deliberating .body::after {
+    content: '...';
+    animation: dots 1.4s steps(4, end) infinite;
+  }
+  @keyframes dots {
+    0%, 20% { content: '.'; }
+    40%     { content: '..'; }
+    60%     { content: '...'; }
+    80%, 100% { content: ''; }
+  }
+
+  /* Final verdict */
+  .verdict-card {
+    margin-top: 24px;
+    border: 2px solid var(--border);
+    padding: 24px;
+    background: var(--surface-2);
+    display: none;
+  }
+  .verdict-card.active { display: block; }
+  .verdict-card.confirmed     { border-color: var(--confirmed); }
+  .verdict-card.refuted       { border-color: var(--refuted); }
+  .verdict-card.inconclusive  { border-color: var(--inconclusive); }
+  .verdict-card .top {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 16px; margin-bottom: 14px;
+  }
+  .verdict-card .vbadge {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 32px; font-weight: 700; letter-spacing: 0.02em;
+  }
+  .verdict-card.confirmed    .vbadge { color: var(--confirmed); }
+  .verdict-card.refuted      .vbadge { color: var(--refuted); }
+  .verdict-card.inconclusive .vbadge { color: var(--inconclusive); }
+  .verdict-card .confidence {
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    color: var(--cream); letter-spacing: 0.10em; text-transform: uppercase;
+  }
+  .verdict-card .confidence b { color: var(--gold); font-weight: 500; }
+  .verdict-card .summary {
+    font-family: 'DM Sans', sans-serif; font-size: 15px;
+    line-height: 1.55; color: var(--cream); margin: 12px 0;
+  }
+  .verdict-card .fix {
+    margin-top: 14px; padding: 14px;
+    background: var(--void); border-left: 3px solid var(--gold);
+  }
+  .verdict-card .fix .lbl {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 0.10em; text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .verdict-card .fix .txt {
+    font-family: 'Libre Baskerville', serif; font-style: italic;
+    font-size: 15px; color: var(--cream); line-height: 1.5;
+  }
+
+  /* ─── Below the fold ─── */
+  .below {
+    max-width: 1200px; margin: 0 auto;
+    padding: 16px 32px 64px;
+  }
+  .section-h {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 24px; margin: 48px 0 16px;
+    color: var(--cream);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  .section-h em { color: var(--gold); font-style: italic; }
+
+  .sdk-code {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 22px; font-family: 'DM Mono', monospace; font-size: 12.5px;
+    line-height: 1.65; color: var(--cream); overflow-x: auto;
+  }
+  .sdk-code .kw  { color: var(--gold); }
+  .sdk-code .str { color: var(--brass); }
+  .sdk-code .cmt { color: var(--muted); font-style: italic; }
+  .sdk-code .fn  { color: var(--cream); }
+  .sdk-code .num { color: var(--inconclusive); }
+
+  .usecase-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .usecase {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 18px;
+  }
+  .usecase h4 {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 13px; letter-spacing: 0.10em; text-transform: uppercase;
+    color: var(--gold); margin: 0 0 8px;
+  }
+  .usecase p {
+    font-family: 'DM Sans', sans-serif; font-size: 13.5px;
+    line-height: 1.5; color: var(--cream); margin: 0;
+  }
+
+  .tier-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .tier {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 18px;
+  }
+  .tier.sov { border-color: var(--brass); }
+  .tier.pro { border-color: var(--gold); }
+  .tier h4 {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 18px; margin: 0 0 4px;
+    color: var(--cream);
+  }
+  .tier.sov h4 { color: var(--brass); }
+  .tier.pro h4 { color: var(--gold); }
+  .tier .price {
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--muted); letter-spacing: 0.10em; text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .tier ul {
+    margin: 0; padding-left: 18px;
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    line-height: 1.7; color: var(--cream);
+  }
+
+  footer {
+    padding: 28px 32px; border-top: 1px solid var(--border);
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--muted); text-align: center;
+    letter-spacing: 0.08em;
+  }
+  footer a { color: var(--brass); text-decoration: none; }
+  footer a:hover { color: var(--gold); }
+  footer .mit {
+    display: inline-block;
+    border: 1px solid var(--brass); color: var(--brass);
+    padding: 3px 8px; font-size: 10px;
+    letter-spacing: 0.14em; margin: 0 8px;
+  }
+
+  /* error toast */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface-2); border-left: 3px solid var(--refuted);
+    padding: 14px 18px; font-family: 'DM Mono', monospace; font-size: 12.5px;
+    color: var(--cream); max-width: 360px; z-index: 100;
+    opacity: 0; transform: translateY(20px); transition: all 0.25s;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.info  { border-left-color: var(--gold); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="glyph">◊</span> <em>fall-verify</em></div>
+  <div class="meta">prime <b>401</b> ┃ R5 mirror · ◐ verify ┃ <b>v1.0</b> · sovereign</div>
+</header>
+
+<section class="hero">
+  <p class="tagline">did Claude hallucinate that<span>·</span>3-vote adversarial verification<span>·</span>sovereign</p>
+  <h1>Catch the <em>plausible nonsense</em><br>before it propagates.</h1>
+  <div class="stat">
+    <span class="big">52%</span>
+    <span class="lbl">of LLM-generated claims fail adversarial verification<br>(<b>n=25</b>, deep-research run, May 2026)</span>
+  </div>
+</section>
+
+<main>
+  <section class="panel-builder">
+    <h2>Convene the panel</h2>
+    <p class="sub">paste a claim · pick presets · run the 3-vote panel</p>
+
+    <div class="preset-row" id="presetRow">
+      <button data-preset="gil-removed"     class="expected-refute">Python GIL removed in 3.13</button>
+      <button data-preset="webgpu-2024"     class="expected-refute">WebGPU stable everywhere in 2024</button>
+      <button data-preset="opus-4-march"    class="expected-incon">Opus 4 released March 2026</button>
+      <button data-preset="linkedin-carousel" class="expected-confirm">LinkedIn carousel 1.39x reach</button>
+      <button data-preset="btc-135"         class="expected-refute">Bitcoin Puzzle 135 solved</button>
+      <button data-clear>clear</button>
+    </div>
+
+    <div class="field">
+      <label for="claim">claim to verify</label>
+      <textarea id="claim" placeholder="e.g. GPT-4 was trained on 13 trillion tokens"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="sources">sources (optional · one URL per line)</label>
+      <textarea id="sources" placeholder="https://example.com/source1&#10;https://example.com/source2"></textarea>
+    </div>
+
+    <div class="controls-row">
+      <div class="field" style="margin: 0;">
+        <label for="panelSize">panel size · <span id="panelSizeVal">3</span></label>
+        <div class="slider-wrap">
+          <input type="range" id="panelSize" min="2" max="5" value="3">
+          <div class="val" id="panelSizeBadge">3</div>
+        </div>
+      </div>
+      <div class="field" style="margin: 0;">
+        <label for="killThreshold">kill threshold · refute votes needed</label>
+        <div class="slider-wrap">
+          <input type="range" id="killThreshold" min="1" max="5" value="2">
+          <div class="val" id="killThresholdBadge">2</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="byoKey">your anthropic key · BYO · stays in IndexedDB · never leaves device except for api.anthropic.com</label>
+      <input type="password" id="byoKey" placeholder="sk-ant-...">
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="runBtn">Run panel</button>
+      <button class="btn ghost" id="clearBtn">Clear</button>
+      <span class="key-note" id="keyNote">demo mode · no key · click a preset</span>
+    </div>
+  </section>
+
+  <section class="panel-stage" id="panelStage">
+    <h3>Panel deliberating</h3>
+    <p class="stage-sub" id="stageSub">3 panelists · each given a distinct lens</p>
+    <div class="panel-grid" id="panelGrid"></div>
+    <div class="verdict-card" id="verdictCard">
+      <div class="top">
+        <div class="vbadge" id="vbadge">VERDICT</div>
+        <div class="confidence">confidence · <b id="confLvl">—</b></div>
+      </div>
+      <div class="summary" id="vsummary"></div>
+      <div class="fix" id="vfix" style="display:none;">
+        <div class="lbl">suggested correction</div>
+        <div class="txt" id="vfixTxt"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<section class="below">
+  <h2 class="section-h">SDK · <em>drop in anywhere</em></h2>
+  <div class="sdk-code"><span class="kw">import</span> { <span class="fn">verify</span>, <span class="fn">batchVerify</span> } <span class="kw">from</span> <span class="str">'https://sjgant80-hub.github.io/fall-verify/fall-verify-sdk.js'</span>;
+
+<span class="kw">const</span> v = <span class="kw">await</span> <span class="fn">verify</span>({
+  claim: <span class="str">"GPT-4 was trained on 13 trillion tokens"</span>,
+  panelSize: <span class="num">3</span>,            <span class="cmt">// 2-5 · default 3</span>
+  killThreshold: <span class="num">2</span>,        <span class="cmt">// refute votes needed · default 2</span>
+  sources: [                <span class="cmt">// optional · gives panel context</span>
+    <span class="str">"https://arxiv.org/abs/2303.08774"</span>,
+    <span class="str">"https://openai.com/research/gpt-4"</span>
+  ],
+  context: <span class="str">"Discussing model scaling trends"</span>,  <span class="cmt">// optional</span>
+  byoKey: <span class="str">'sk-ant-...'</span>,
+  onPanelist: <span class="fn">(v)</span> =&gt; <span class="fn">render</span>(v),  <span class="cmt">// optional · per-panelist stream</span>
+});
+<span class="cmt">// → {</span>
+<span class="cmt">//     verdict: 'confirmed' | 'refuted' | 'inconclusive',</span>
+<span class="cmt">//     confidence: 'high' | 'medium' | 'low',</span>
+<span class="cmt">//     votes: [{ panelist, role, vote, reasoning, citations, elapsed }, ...],</span>
+<span class="cmt">//     summary: 'Claim refuted 2-1 · GPT-4 token count never disclosed publicly',</span>
+<span class="cmt">//     suggestedFix: 'GPT-4 training token count has not been publicly disclosed by OpenAI'</span>
+<span class="cmt">//   }</span>
+
+<span class="cmt">// batch interface · parallel</span>
+<span class="kw">const</span> results = <span class="kw">await</span> <span class="fn">batchVerify</span>(claims, options);</div>
+
+  <h2 class="section-h">Use cases · <em>where verification earns its keep</em></h2>
+  <div class="usecase-grid">
+    <div class="usecase">
+      <h4>RAG fact-check</h4>
+      <p>Verify every claim your retrieval-augmented chain produces against its own sources. Catch the moment the model wanders off the corpus.</p>
+    </div>
+    <div class="usecase">
+      <h4>Content moderation</h4>
+      <p>Adversarially vet user-generated claims before they ship. False-statistic posts caught upstream of publication.</p>
+    </div>
+    <div class="usecase">
+      <h4>Code review</h4>
+      <p>Hallucinated API signatures, fabricated library names, wrong version numbers — the panel catches what the LLM smuggled past you.</p>
+    </div>
+    <div class="usecase">
+      <h4>Audit chain</h4>
+      <p>Pro tier signs every verdict with Konomi keys. Your audit trail proves you ran the gate before propagating the claim.</p>
+    </div>
+    <div class="usecase">
+      <h4>Deep research</h4>
+      <p>The workflow that birthed this primitive. Kill 50%+ of plausible nonsense before it lands in the final report.</p>
+    </div>
+    <div class="usecase">
+      <h4>LLM eval</h4>
+      <p>Use the panel as a judge over your own model's outputs. Cheaper than human review, sharper than single-model self-critique.</p>
+    </div>
+  </div>
+
+  <h2 class="section-h">Tiers · <em>Konomi shim · prime 401</em></h2>
+  <div class="tier-grid">
+    <div class="tier">
+      <h4>Free</h4>
+      <div class="price">trial · branded</div>
+      <ul>
+        <li>10 verifications / day</li>
+        <li>panel size ≤ 2</li>
+        <li>fall-verify badge</li>
+        <li>demo presets unlimited</li>
+      </ul>
+    </div>
+    <div class="tier sov">
+      <h4>Sovereign</h4>
+      <div class="price">MIT · BYO key</div>
+      <ul>
+        <li>unlimited verifications</li>
+        <li>panel size 2-5</li>
+        <li>no branding</li>
+        <li>IndexedDB history</li>
+        <li>works from file://</li>
+      </ul>
+    </div>
+    <div class="tier pro">
+      <h4>Pro</h4>
+      <div class="price">batch · webhook · audit</div>
+      <ul>
+        <li>batchVerify in parallel</li>
+        <li>webhook on verdict</li>
+        <li>Konomi-signed audit chain</li>
+        <li>every verdict cryptographically signed</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 class="section-h">Why <em>adversarial</em></h2>
+  <div class="usecase" style="background: var(--surface); padding: 24px;">
+    <p style="font-family: 'Libre Baskerville', serif; font-style: italic; font-size: 16px; line-height: 1.65; color: var(--cream); margin: 0;">
+      Every LLM application generates plausible nonsense. A single-vote check inherits the model's blind spots — it doesn't know what it doesn't know. The 3-vote panel works because each panelist is prompted with a <em style="color: var(--gold);">distinct adversarial lens</em>: skeptic, technical detail, nuance. Disagreement is the signal. When the panel splits 2-1, the claim deserves the human's attention. When the panel agrees 3-0 to refute, the model can keep walking. That's the gate. No public competitor packages this as a primitive.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <span class="mit">MIT</span>
+  prime 401 · ◊ <a href="https://github.com/sjgant80-hub/fall-verify">github.com/sjgant80-hub/fall-verify</a> ·
+  built by <a href="https://github.com/sjgant80-hub">Simon Gant</a> ·
+  <span class="mit">v1.0</span>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { verify, demoVerify, VERSION, PRIME } from './fall-verify-sdk.js';
+
+// ─── konomi licence shim (minimal · 50 lines) ────────────────────
+const Konomi = (function(){
+  const KEY = 'konomi.fall-verify';
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+  function tier() {
+    const s = load();
+    if (s.tier === 'pro' || s.tier === 'sovereign') return s.tier;
+    return 'free';
+  }
+  function recordVerify() {
+    const s = load();
+    const today = new Date().toISOString().slice(0, 10);
+    if (s.day !== today) { s.day = today; s.count = 0; }
+    s.count = (s.count || 0) + 1;
+    save(s);
+    return s.count;
+  }
+  function canVerify(panelSize) {
+    const t = tier();
+    if (t === 'pro' || t === 'sovereign') return { ok: true };
+    const s = load();
+    const today = new Date().toISOString().slice(0, 10);
+    const count = s.day === today ? (s.count || 0) : 0;
+    if (count >= 10) return { ok: false, reason: 'free tier · 10 verifications/day used · paste BYO key for sovereign tier' };
+    if (panelSize > 2) return { ok: false, reason: 'free tier · panel size capped at 2 · paste BYO key to unlock 3-5' };
+    return { ok: true };
+  }
+  function activateSovereign() {
+    const s = load(); s.tier = 'sovereign'; save(s);
+  }
+  return { tier, canVerify, recordVerify, activateSovereign };
+})();
+
+// ─── BYO key storage (IndexedDB · falls back to localStorage) ───
+const KeyStore = (function(){
+  const LS_KEY = 'fall-verify.byokey';
+  return {
+    get() {
+      try { return localStorage.getItem(LS_KEY) || ''; } catch (e) { return ''; }
+    },
+    set(k) {
+      try { if (k) localStorage.setItem(LS_KEY, k); else localStorage.removeItem(LS_KEY); } catch (e) {}
+    },
+  };
+})();
+
+// ─── UI wiring ──────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const claimEl = $('claim');
+const sourcesEl = $('sources');
+const panelSizeEl = $('panelSize');
+const panelSizeBadge = $('panelSizeBadge');
+const panelSizeVal = $('panelSizeVal');
+const killEl = $('killThreshold');
+const killBadge = $('killThresholdBadge');
+const byoKeyEl = $('byoKey');
+const keyNote = $('keyNote');
+const runBtn = $('runBtn');
+const clearBtn = $('clearBtn');
+const panelStage = $('panelStage');
+const stageSub = $('stageSub');
+const panelGrid = $('panelGrid');
+const verdictCard = $('verdictCard');
+const vbadge = $('vbadge');
+const confLvl = $('confLvl');
+const vsummary = $('vsummary');
+const vfix = $('vfix');
+const vfixTxt = $('vfixTxt');
+const toast = $('toast');
+
+// hydrate stored key
+byoKeyEl.value = KeyStore.get();
+updateKeyNote();
+
+byoKeyEl.addEventListener('change', () => {
+  KeyStore.set(byoKeyEl.value.trim());
+  if (byoKeyEl.value.trim().startsWith('sk-ant-')) Konomi.activateSovereign();
+  updateKeyNote();
+});
+byoKeyEl.addEventListener('input', updateKeyNote);
+
+function updateKeyNote() {
+  const v = byoKeyEl.value.trim();
+  if (v.startsWith('sk-ant-') && v.length > 20) {
+    keyNote.innerHTML = '<span class="ok">key set</span> · sovereign tier · ' + Konomi.tier();
+  } else if (v) {
+    keyNote.textContent = 'key looks malformed · expected sk-ant-...';
+  } else {
+    keyNote.textContent = 'demo mode · no key · click a preset to see a baked panel';
+  }
+}
+
+panelSizeEl.addEventListener('input', () => {
+  panelSizeBadge.textContent = panelSizeEl.value;
+  panelSizeVal.textContent = panelSizeEl.value;
+  // auto-set killThreshold to ceil(2/3 * panelSize)
+  const recommended = Math.ceil(panelSizeEl.value * 2 / 3);
+  killEl.value = recommended;
+  killBadge.textContent = recommended;
+  killEl.max = panelSizeEl.value;
+});
+killEl.addEventListener('input', () => { killBadge.textContent = killEl.value; });
+
+clearBtn.addEventListener('click', () => {
+  claimEl.value = '';
+  sourcesEl.value = '';
+  panelStage.classList.remove('active');
+  panelGrid.innerHTML = '';
+  verdictCard.classList.remove('active', 'confirmed', 'refuted', 'inconclusive');
+  $('claim').focus();
+});
+
+// preset clicks
+document.getElementById('presetRow').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.hasAttribute('data-clear')) {
+    clearBtn.click();
+    return;
+  }
+  const preset = btn.getAttribute('data-preset');
+  if (!preset) return;
+  runDemo(preset);
+});
+
+runBtn.addEventListener('click', async () => {
+  const claim = claimEl.value.trim();
+  if (!claim) { showToast('paste a claim first', 'info'); return; }
+  const byoKey = byoKeyEl.value.trim();
+  if (!byoKey) { showToast('no key · click a preset for demo mode, or paste sk-ant-...', 'info'); return; }
+  if (!byoKey.startsWith('sk-ant-')) { showToast('key looks malformed · expected sk-ant-...'); return; }
+
+  const panelSize = parseInt(panelSizeEl.value, 10);
+  const killThreshold = parseInt(killEl.value, 10);
+
+  const gate = Konomi.canVerify(panelSize);
+  if (!gate.ok) { showToast(gate.reason, 'info'); return; }
+
+  const sources = sourcesEl.value.split('\n').map(s => s.trim()).filter(Boolean);
+
+  setupPanelStage(panelSize, claim);
+  runBtn.disabled = true;
+
+  try {
+    const result = await verify({
+      claim: claim,
+      panelSize: panelSize,
+      killThreshold: killThreshold,
+      sources: sources.length ? sources : undefined,
+      byoKey: byoKey,
+      onPanelist: renderPanelistVote,
+    });
+    renderVerdict(result);
+    Konomi.recordVerify();
+  } catch (err) {
+    showToast('verification failed: ' + (err.message || err));
+    console.error(err);
+  } finally {
+    runBtn.disabled = false;
+  }
+});
+
+async function runDemo(presetKey) {
+  // populate claim field with the demo claim
+  const claimMap = {
+    'gil-removed': "Python's GIL was removed in 3.13",
+    'webgpu-2024': "WebGPU shipped stable in all major browsers in 2024",
+    'opus-4-march': "Anthropic released Claude Opus 4 in March 2026",
+    'linkedin-carousel': "LinkedIn carousel posts get 1.39x reach",
+    'btc-135': "Bitcoin Puzzle 135 has been solved",
+  };
+  claimEl.value = claimMap[presetKey] || '';
+  setupPanelStage(3, claimEl.value);
+  runBtn.disabled = true;
+  try {
+    const result = await demoVerify(presetKey, { onPanelist: renderPanelistVote });
+    renderVerdict(result);
+  } catch (err) {
+    showToast('demo failed: ' + (err.message || err));
+  } finally {
+    runBtn.disabled = false;
+  }
+}
+
+function setupPanelStage(panelSize, claim) {
+  panelStage.classList.add('active');
+  verdictCard.classList.remove('active', 'confirmed', 'refuted', 'inconclusive');
+  stageSub.textContent = panelSize + ' panelists · each given a distinct lens · deliberating in parallel';
+  panelGrid.innerHTML = '';
+  const roles = ['Skeptic', 'Technical detail', 'Nuance', 'Cross-reference', 'Source quality'];
+  for (let i = 1; i <= panelSize; i++) {
+    const card = document.createElement('div');
+    card.className = 'panelist-card deliberating';
+    card.setAttribute('data-idx', String(i));
+    card.setAttribute('data-panelist', String(i));
+    card.innerHTML = `
+      <div class="elapsed">…</div>
+      <div class="head">
+        <div class="num">PANELIST <span class="accent">${i}</span></div>
+        <div class="role">${roles[i-1] || 'Panelist'}</div>
+      </div>
+      <div class="body">deliberating</div>
+    `;
+    panelGrid.appendChild(card);
+  }
+  // scroll into view
+  panelStage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderPanelistVote(v) {
+  const card = panelGrid.querySelector('[data-panelist="' + v.panelist + '"]');
+  if (!card) return;
+  card.classList.remove('deliberating');
+  const citationsHtml = (v.citations && v.citations.length)
+    ? '<div class="citations">' + v.citations.map(c => {
+        if (c.startsWith('http')) return '<a href="' + c + '" target="_blank" rel="noopener">' + c + '</a>';
+        return c;
+      }).join('<br>') + '</div>'
+    : '';
+  card.innerHTML = `
+    <div class="elapsed">${v.elapsed || ''}</div>
+    <div class="head">
+      <div class="num">PANELIST <span class="accent">${v.panelist}</span></div>
+      <div class="role">${v.role || ''}</div>
+    </div>
+    <div class="vote ${v.vote}">${v.vote}</div>
+    <div class="body">${escapeHtml(v.reasoning || '')}</div>
+    ${citationsHtml}
+  `;
+}
+
+function renderVerdict(result) {
+  verdictCard.classList.add('active', result.verdict);
+  vbadge.textContent = result.verdict.toUpperCase();
+  confLvl.textContent = result.confidence.toUpperCase();
+  vsummary.textContent = result.summary;
+  if (result.suggestedFix) {
+    vfix.style.display = 'block';
+    vfixTxt.textContent = result.suggestedFix;
+  } else {
+    vfix.style.display = 'none';
+  }
+  verdictCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let toastTimer = null;
+function showToast(msg, kind) {
+  toast.textContent = msg;
+  toast.className = 'toast show' + (kind === 'info' ? ' info' : '');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// ─── fall-signal listener (audit · verify_complete events) ──────
+try {
+  if (typeof BroadcastChannel === 'function') {
+    const ch = new BroadcastChannel('fall-signal');
+    ch.addEventListener('message', (e) => {
+      // pass-through; nothing to render but the channel is hot
+      // console.log('[fall-signal]', e.data);
+    });
+  }
+} catch (e) {}
+
+console.log('%c◊ fall-verify · prime 401 · v' + VERSION + ' · sovereign', 'color:#d4a853;font-family:serif;font-size:14px;');
+console.log('SDK loaded. Try: window.dispatchEvent ... or import from /fall-verify-sdk.js');
+</script>
+
+</body>
+</html>
